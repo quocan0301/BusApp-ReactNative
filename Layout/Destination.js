@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { WebView } from 'react-native-webview';
+import { NavigationContainer} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
 import {
   Text,
   View,
@@ -17,6 +17,7 @@ import {
   FlatList,
   useWindowDimensions,
 } from 'react-native';
+// import MapView from 'react-native-maps';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import BottomDrawer from 'react-native-bottom-drawer-view';
@@ -29,6 +30,72 @@ import Footer from '../components/Footer';
 import CustomListItem from '../components/CustomListItem';
 
 const Stack = createNativeStackNavigator();
+
+const html=`<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaflet Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+</head>
+<body>
+    <div id="map" style="height: 90vh;">
+    </div>
+
+    <script>
+        var map = L.map('map').setView([10.8231, 106.6297], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            maxZoom: 18,
+            tileSize: 512,
+            zoomOffset: -1,
+        }).addTo(map);
+        var routingControl;
+        var marker;
+        document.getElementById('search-button').addEventListener('click', function() {
+            var address = document.getElementById('search-input').value;
+            if (address != '') {
+                fetch('https://nominatim.openstreetmap.org/search.php?q=' + address + '&format=json')
+                .then(response => response.json())
+                .then(data => {
+                    var lat = parseFloat(data[0].lat);
+                    var lon = parseFloat(data[0].lon);
+                    var coordinates = [lat, lon];
+                    if (marker) {
+                        marker.setLatLng(coordinates);
+                    } else {
+                        marker = L.marker(coordinates).addTo(map)}})}});
+    document.getElementById('routing-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      var destination = document.getElementById('destination-input').value;
+      if (destination != '') {
+        fetch('https://nominatim.openstreetmap.org/search.php?q=' + destination + '&format=json')
+        .then(response => response.json())
+        .then(data => {
+          var lat = parseFloat(data[0].lat);
+          var lon = parseFloat(data[0].lon);
+          var coordinates = [lat, lon];
+          if (routingControl) {
+            routingControl.setWaypoints([marker.getLatLng(), coordinates]);
+          } else {
+            routingControl = L.Routing.control({
+              waypoints: [marker.getLatLng(), coordinates],
+              router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+              })
+            }).addTo(map);
+          }
+        })
+        .catch(error => console.error(error));
+      }
+    });
+    </script>
+</body>
+</html>`;
 
 const places = [
   { key: 'Accra' },
@@ -128,7 +195,7 @@ export default function Destination({ navigation }) {
     setIsBottomNavShowing(true);
     setBottomNavProps({
       color: '#1c458a',
-      placeholder: 'Travelling To',
+      placeholder: 'Đi từ',
       type: 'destination',
     });
   };
@@ -137,21 +204,17 @@ export default function Destination({ navigation }) {
     setIsBottomNavShowing(true);
     setBottomNavProps({
       color: '#8cd9e3',
-      placeholder: 'Travelling From',
+      placeholder: 'Đến',
       type: 'departure',
     });
   };
 
   return (
     <View style={(styles.container)}>
-      <View style={styles.top}>
-        <ImageBackground  style={styles.image} source={image} />
-        <Text style={{ marginTop: 250, marginLeft: 10, fontStyle: 'bold' }}>
-          Where to?
-        </Text>
-      </View>
-
       <View style={styles.body}>
+        <View style={styles.header}>
+          <Text style={{ fontSize: 24, color: 'white'}}>Tìm đường</Text>
+        </View>
         <View style={styles.inputSection}>
           <FontAwesome
             style={styles.inputIcon}
@@ -161,14 +224,14 @@ export default function Destination({ navigation }) {
           />
           <TextInput
             style={styles.input}
-            placeholder="Travelling From"
+            placeholder="Đi từ"
             keyboardType="text"
             clearButtonMode={true}
             contextMenuHidden
-            onFocus={setUpDeparture}
-            onChange={(value) =>
-              setqueryData({ ...queryData, departure: value.nativeEvent.text })
-            }
+            // onFocus={setUpDeparture}
+            // onChange={(value) =>
+            //   setqueryData({ ...queryData, departure: value.nativeEvent.text })
+            // }
             value={queryData.departure}
           />
         </View>
@@ -183,43 +246,227 @@ export default function Destination({ navigation }) {
           <TextInput
             style={styles.input}
             clearButtonMode={true}
-            placeholder="Travelling To"
+            placeholder="Đến"
             keyboardType="text"
-            onFocus={setUpDesination}
-            onChange={(value) =>
-              setqueryData({
-                ...queryData,
-                destination: value.nativeEvent.text,
-              })
-            }
+            // onFocus={setUpDesination}
+            // onChange={(value) =>
+            //   setqueryData({
+            //     ...queryData,
+            //     destination: value.nativeEvent.text,
+            //   })
+            // }
             value={queryData.destination}
           />
         </View>
 
-        <View style={styles.inputSection}>
-          <Ionicons
-            style={styles.inputIcon}
-            name="calendar"
-            size={20}
-            color="red"
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Select Date"
-            keyboardType="text"
-          />
+        <View style={styles.mapSection}>
+          {<WebView
+            source={{html: html }}
+          />}
         </View>
 
-        <TouchableOpacity
-          style={styles.searchButton}
-          onPress={() =>
-            navigation.navigate('Tickets', {
-              travelFrom: queryData.departure,
-              travelTo: queryData.destination,
-            })
-          }>
-          <Text style={{ color: 'white' }}>Search</Text>
-        </TouchableOpacity>
+        <View style={styles.tourSection}>
+          <Text style={{ textAlign: 'center', paddingBottom: 5, fontSize: 15, color: '#0C4B8E', borderBottomWidth: 1}}>Cách di chuyển phù hợp</Text>
+          <View style={styles.tourcomponent}>
+            <View style={styles.left}>
+              <View style={styles.inrow}>
+                <View style={[styles.busstat, {backgroundColor: '#DF2E38'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>10</Text>
+                }
+                </View>
+                <FontAwesome
+                style={{marginTop: 10, height: 35}}
+                name="chevron-right"
+                size={12}
+                color="gray"
+                />
+                <View style={[styles.busstat, {backgroundColor: '#183A1D'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>27</Text>
+                }
+                </View>
+                <FontAwesome
+                style={{marginTop: 10, height: 35}}
+                name="chevron-right"
+                size={12}
+                color="gray"
+                />
+                <View style={[styles.busstat, {backgroundColor: '#0E8388'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>15</Text>
+                }
+                </View>
+              </View>
+              <View style={[styles.inrow, {marginLeft: 5}]}>
+                <Ionicons
+                    
+                    name="walk"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>1.4km {"\t"} </Text>
+                
+                <Ionicons
+                    
+                    name="bus"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>12km</Text>
+              </View>
+              
+              <View style={[styles.inrow, {marginTop: 10, marginLeft: 5}]}>
+                <FontAwesome
+                  name="sign-in"
+                  size={14}
+                  color="#F28739"
+                />
+                <Text style={{ marginLeft: 5, fontSize: 12}}>Xe tới trong 5 phút tại trạm <Text style={{ color: 'gray', fontWeight: 'bold' }}>Bưu điện Quận 7</Text></Text>
+              </View>
+            </View>
+            <View style={styles.right}>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <Text style={{fontSize: 15, textAlign:'center', color: '#7A7EEF', fontWeight: 'bold'}}>25 phút {"\t"} </Text>
+              </View>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <TouchableOpacity
+                  style={styles.searchButton}
+                  onPress={() =>
+                    navigation.navigate('Tickets', {
+                      travelFrom: queryData.departure,
+                      travelTo: queryData.destination,
+                    })
+                  }>
+                  <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold'}}>Search</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          <View style={styles.tourcomponent}>
+            <View style={styles.left}>
+              <View style={styles.inrow}>
+                <View style={[styles.busstat, {backgroundColor: '#DF2E38'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>10</Text>
+                }
+                </View>
+                <FontAwesome
+                style={{marginTop: 10, height: 35}}
+                name="chevron-right"
+                size={12}
+                color="gray"
+                />
+                <View style={[styles.busstat, {backgroundColor: '#0E8388'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>15</Text>
+                }
+                </View>
+              </View>
+              <View style={[styles.inrow, {marginLeft: 5}]}>
+                <Ionicons
+                    
+                    name="walk"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>1.4km {"\t"} </Text>
+                
+                <Ionicons
+                    
+                    name="bus"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>12km</Text>
+              </View>
+              
+              <View style={[styles.inrow, {marginTop: 10, marginLeft: 5}]}>
+                <FontAwesome
+                  name="sign-in"
+                  size={14}
+                  color="#F28739"
+                />
+                <Text style={{ marginLeft: 5, fontSize: 12}}>Xe tới trong 3 phút tại trạm <Text style={{ color: 'gray', fontWeight: 'bold' }}>Bưu điện Quận 7</Text></Text>
+              </View>
+            </View>
+            <View style={styles.right}>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <Text style={{fontSize: 15, textAlign:'center', color: '#7A7EEF', fontWeight: 'bold'}}>21 phút {"\t"} </Text>
+              </View>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <TouchableOpacity
+                  style={styles.searchButton}
+                  onPress={() =>
+                    navigation.navigate('Tickets', {
+                      travelFrom: queryData.departure,
+                      travelTo: queryData.destination,
+                    })
+                  }>
+                  <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold'}}>Search</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+          <View style={styles.tourcomponent}>
+            <View style={styles.left}>
+              <View style={styles.inrow}>
+                <View style={[styles.busstat, {backgroundColor: '#DF2E38'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>10</Text>
+                }
+                </View>
+                <FontAwesome
+                style={{marginTop: 10, height: 35}}
+                name="chevron-right"
+                size={12}
+                color="gray"
+                />
+                <View style={[styles.busstat, {backgroundColor: '#FFB84C'}]}>{
+                  <Text style={{ fontSize: 15, color: 'white', fontWeight: 'bold' }}>28</Text>
+                }
+                </View>
+              </View>
+              <View style={[styles.inrow, {marginLeft: 5}]}>
+                <Ionicons
+                    
+                    name="walk"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>1.4km {"\t"} </Text>
+                
+                <Ionicons
+                    
+                    name="bus"
+                    size={14}
+                    color= 'gray'
+                />
+                <Text style={{fontSize: 12}}>12km</Text>
+              </View>
+              
+              <View style={[styles.inrow, {marginTop: 10, marginLeft: 5}]}>
+                <FontAwesome
+                  name="sign-in"
+                  size={14}
+                  color="#F28739"
+                />
+                <Text style={{ marginLeft: 5, fontSize: 12}}>Xe tới trong {"<"} 1 phút tại trạm <Text style={{ color: 'gray', fontWeight: 'bold' }}>Lý Thường Kiệt</Text></Text>
+              </View>
+            </View>
+            <View style={styles.right}>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <Text style={{fontSize: 15, textAlign:'center', color: '#7A7EEF', fontWeight: 'bold'}}>28 phút {"\t"} </Text>
+              </View>
+              <View style={[styles.inrow, {marginTop: 10}]}>
+                <TouchableOpacity
+                  style={styles.searchButton}
+                  onPress={() =>
+                    navigation.navigate('Tickets', {
+                      travelFrom: queryData.departure,
+                      travelTo: queryData.destination,
+                    })
+                  }>
+                  <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold'}}>Search</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
 
       <View style={styles.footer}>
@@ -246,62 +493,113 @@ const styles = StyleSheet.create({
   container: {
     display: 'flex',
     flexDirection: 'column',
-  },
-  top: {
-    height: '43%',
-    backgroundColor: '#fff',
+    backgroundColor: '#0093E9',
   },
   body: {
-    height: '50%',
-    backgroundColor: '#f4f6f8',
+    height: '93%',
+    backgroundColor: '#0093E9',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     display: 'flex',
     flexDirection: 'column',
-    paddingTop: 50,
+    paddingTop: 20,
     paddingLeft: 20,
     paddingRight: 20,
   },
   footer: {
     height: '7%',
   },
-  image: {
-    flex: 0.6,
-    justifyContent: 'center',
-    height: 250,
-    width: '100%',
-  },
   input: {
     flex: 1,
-    height: 40,
+    height: 30,
     backgroundColor: 'white',
-    paddingTop: 10,
-    paddingRight: 10,
-    paddingBottom: 10,
+    paddingTop: 5,
+    paddingRight: 5,
+    paddingBottom: 5,
     paddingLeft: 0,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    height: 30,
+  },
   inputSection: {
-    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
-    marginBottom: 15,
-    height: 40,
+    marginBottom: 10,
+    height: 30,
     borderRadius: 10,
   },
+  mapSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    height: 160,
+    borderRadius: 10,
+  },
+  tourSection: {
+    flexDirection: 'row',
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    height: 320,
+    borderRadius: 10,
+  },
+  tourcomponent: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    height: 40,
+    borderRadius: 10,
+    borderBottomWidth: 1,
+    borderColor: 'gray',
+  },
+  inrow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+  },
 
+  left: {
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+    height: 40,
+    width: '75%',
+  },
+  
+  right: {
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+    height: 40,
+    width: '25%',
+  },
+  busstat: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 25,
+    width: 35,
+    borderRadius: 5,
+    marginTop: 5,
+    marginLeft: 5,
+    marginRight: 5,
+  },
   inputIcon: {
     padding: 10,
     height: 40,
   },
-
   searchButton: {
-    margin: 20,
     alignItems: 'center',
-    backgroundColor: '#82B479',
-    padding: 15,
-    height: 45,
-    borderRadius: 50,
+    justifyContent: 'center',
+    backgroundColor: '#0C4B8E',
+    height: 30,
+    width: 60,
+    borderRadius: 10,
   },
 });

@@ -11,7 +11,7 @@ import Constants from 'expo-constants';
 // or any pure javascript modules available in npm
 import { Card } from 'react-native-paper';
 //import image from '../assets/bus-move.gif';
-import image from '../assets/bus-side-1.gif';
+import image from '../assets/Home.png';
 
 
 export default function SplashScreen() {
@@ -33,9 +33,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   image: {
-    flex: 0.6,
+    flex: 1,
     justifyContent: 'center',
-    height: 250,
-    width: 250
+    height: '100%'
   },
 });
